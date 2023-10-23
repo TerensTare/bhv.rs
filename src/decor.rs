@@ -1,30 +1,62 @@
-use crate::bhv::{Bhv, Status};
-
-// TODO:
-// Repeat should be ran every time the node is finished, not every time `update` is called
-// same thing for RepeatUntil
+use crate::core::{Bhv, Status};
 
 /// A decorator that runs the given node until it's done and inverts
 /// the result.
 ///
 /// More specifically, it converts [`Status::Success`] to [`Status::Failure`]
 /// and [`Status::Failure`] to [`Status::Success`].
+/// 
+/// # Example
+/// 
+/// ```
+/// use bhv::*;
+/// 
+/// let always_true = action(|_| {});
+/// assert!(always_true.clone().execute(&mut 100) == true);
+/// 
+/// let inverse = always_true.inv();
+/// assert!(inverse.execute(&mut 100) == false);
+/// ```
 #[derive(Clone)]
 pub struct Inv<B: Bhv>(pub B);
 
 /// A decorator that runs the given node until it's done and then returns [`Status::Success`].
+/// 
+/// # Example
+/// 
+/// ```
+/// use bhv::*;
+/// 
+/// let always_false = cond(|_| false);
+/// assert!(always_false.clone().execute(&mut 100) == false);
+/// 
+/// let always_true = always_false.pass();
+/// assert!(always_true.execute(&mut 100) == true);
+/// ```
 #[derive(Clone)]
 pub struct Pass<B: Bhv>(pub B);
 
 /// A decorator that runs the given node until it's done and then returns [`Status::Failure`].
+/// 
+/// # Example
+/// 
+/// ```
+/// use bhv::*;
+/// 
+/// let always_true = cond(|_| true);
+/// assert!(always_true.clone().execute(&mut 100) == true);
+/// 
+/// let always_false = always_true.fail();
+/// assert!(always_false.execute(&mut 100) == false);
+/// ```
 #[derive(Clone)]
 pub struct Fail<B: Bhv>(pub B);
 
 /// A decorator that runs the given node a certain number of times and returns its status.
 #[derive(Clone)]
 pub struct Repeat<B: Bhv> {
-    pub bhv: B,
-    pub count: u32,
+    pub(crate) bhv: B,
+    pub(crate) count: u32,
     pub(crate) current: u32,
 }
 
@@ -36,12 +68,27 @@ where
     B: Bhv,
     C: Fn(&B::Context) -> bool,
 {
-    pub bhv: B,
-    pub cond: C,
+    pub(crate) bhv: B,
+    pub(crate) cond: C,
     pub(crate) checked_cond: bool,
 }
 
 /// Repeat a behavior the given number of times.
+/// 
+/// # Example
+/// 
+/// ```
+/// use bhv::*;
+/// 
+/// let mut v = 10;
+/// 
+/// let dec = action(|v| *v -= 1);
+/// let tree = dec.repeat(3);
+/// 
+/// tree.execute(&mut v);
+/// 
+/// assert_eq!(v, 7);
+/// ```
 #[inline]
 pub fn repeat<B: Bhv>(bhv: B, count: u32) -> Repeat<B> {
     Repeat {
@@ -52,6 +99,21 @@ pub fn repeat<B: Bhv>(bhv: B, count: u32) -> Repeat<B> {
 }
 
 /// Repeat a behavior as long as the given predicate is true.
+/// 
+/// # Example
+/// 
+/// ```
+/// use bhv::*;
+/// 
+/// let mut v = 10;
+/// 
+/// let dec = action(|v| *v -= 1);
+/// let tree = dec.repeat_until(|v| *v < 8);
+/// 
+/// tree.execute(&mut v);
+/// 
+/// assert_eq!(v, 7);
+/// ```
 #[inline]
 pub fn repeat_until<B, C>(bhv: B, cond: C) -> RepeatUntil<B, C>
 where
@@ -120,7 +182,10 @@ impl<B: Bhv> Bhv for Repeat<B> {
         } else {
             match self.bhv.update(ctx) {
                 Status::Running => {}
-                _ => self.current += 1,
+                s => {
+                    self.bhv.reset(s);
+                    self.current += 1;
+                }
             };
 
             Status::Running

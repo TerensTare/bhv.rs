@@ -1,4 +1,4 @@
-/// An enum type representing the outcome of calling [`Bhv::step`].
+/// An enum type representing the outcome of calling [`Bhv::update`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Status {
     /// The behavior is still running.
@@ -19,6 +19,7 @@ pub trait Bhv {
     fn update(&mut self, ctx: &mut Self::Context) -> Status;
 
     /// Reset the node to initial status after completion, if needed.
+    /// Defaults to nothing.
     fn reset(&mut self, _status: Status) {}
 
     /// Update the node until it returns a value different from [`Status::Running`].

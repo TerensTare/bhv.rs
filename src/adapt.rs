@@ -1,21 +1,31 @@
-use crate::bhv::{Bhv, Status};
+use crate::core::{Bhv, Status};
 use std::marker::PhantomData;
 
-/// Adapt a predicate into a behavior, returning [`Status::Success`] if
-/// the predicate returns `true` and [`Status::Failure`] otherwise.
+/// The type of the result of [`cond`].
 #[derive(Clone)]
 pub struct Cond<Ctx, C>(C, PhantomData<Ctx>)
 where
     C: Fn(&Ctx) -> bool;
 
-/// Adapt a function that returns nothing into a behavior, returning [`Status::Success`]
-/// on every call to [`Bhv::update`].
+/// The type of the result of [`action`].
 #[derive(Clone)]
 pub struct Action<Ctx, A>(A, PhantomData<Ctx>)
 where
     A: FnMut(&mut Ctx);
 
-/// Wrap a predicate into a behavior node.
+/// Adapt a predicate into a behavior, returning [`Status::Success`] if
+/// the predicate returns `true` and [`Status::Failure`] otherwise.
+///
+/// # Example
+///
+/// ```
+/// use bhv::*;
+///
+/// let check = cond(|v| *v >= 10);
+///
+/// assert!(check.clone().execute(&mut 10) == true);
+/// assert!(check.execute(&mut 5) == false);
+/// ```
 #[inline]
 pub fn cond<Ctx, C>(c: C) -> Cond<Ctx, C>
 where
@@ -24,7 +34,17 @@ where
     Cond(c, PhantomData)
 }
 
-/// Wrap a function into a behavior node.
+/// Adapt a function that returns nothing into a behavior, returning [`Status::Success`]
+/// on every call to [`Bhv::update`].
+///
+/// # Example
+///
+/// ```
+/// use bhv::*;
+///
+/// let print = action(|v| println!("Value is {}", *v));
+/// assert!(print.execute(&mut 42) == true);
+/// ```
 #[inline]
 pub fn action<Ctx, A>(a: A) -> Action<Ctx, A>
 where

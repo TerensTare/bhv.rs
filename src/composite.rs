@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::bhv::{Bhv, Status};
+use crate::core::{Bhv, Status};
 
 // TODO:
 // BhvExt::then specialization for Seq
@@ -23,29 +23,35 @@ where
     _tag: PhantomData<Policy>,
 }
 
-impl<Ctx, Policy> List<Ctx, Policy>
-where
-    Policy: StatusPolicy,
-{
-    #[inline]
-    pub(crate) fn with_nodes(nodes: Vec<Box<dyn Bhv<Context = Ctx>>>) -> Self {
-        Self {
-            nodes,
-            current: 0,
-            _tag: PhantomData,
-        }
-    }
-}
-
 /// A selector is a behavior node composed of a list of nodes that are run until one of them succeeds,
 /// in which case the node also succeeds. If none of the nodes succeeds, this node fails.
-
 pub struct Sel<Ctx>(pub(crate) List<Ctx, SelPolicy>);
 
 /// A sequence is a behavior node composed of a list of nodes that are run until one of them fails,
 /// in which case the node also fails. If none of the nodes fails, this node succeeds.
-
 pub struct Seq<Ctx>(pub(crate) List<Ctx, SeqPolicy>);
+
+impl<Ctx> Sel<Ctx> {
+    #[inline]
+    pub fn with_nodes(nodes: Vec<Box<dyn Bhv<Context = Ctx>>>) -> Self {
+        Self(List {
+            nodes,
+            current: 0,
+            _tag: PhantomData,
+        })
+    }
+}
+
+impl<Ctx> Seq<Ctx> {
+    #[inline]
+    pub fn with_nodes(nodes: Vec<Box<dyn Bhv<Context = Ctx>>>) -> Self {
+        Self(List {
+            nodes,
+            current: 0,
+            _tag: PhantomData,
+        })
+    }
+}
 
 impl<Ctx, Policy> Bhv for List<Ctx, Policy>
 where
@@ -115,28 +121,60 @@ impl StatusPolicy for SeqPolicy {
 
 /// A macro used to create a selector from a list of behaviors.
 /// Selectors run every behavior until one of them succeeds.
+///
+/// # Example
+///
+/// ```
+/// use bhv::*;
+///
+/// let v_1digit = seq! {
+///     cond(|v| *v < 10),
+///     action(|v| println!("v only has one digit")),
+/// };
+///
+/// let v_other = action(|v| println!("v has more than one digit"));
+///
+/// let tree = sel! { v_1digit, v_other };
+///
+/// assert!(tree.execute(&mut 9) == true); // v only has one digit
+/// // assert!(tree.execute(&mut 11) == true); // v has more than one digit
+/// ```
+#[macro_export]
 macro_rules! sel {
     () => {
         compile_error!("`sel` should have at least one argument!")
     };
     ($($x:expr),+$(,)?) => {
-        $crate::Sel(
-            $crate::List::with_nodes(
-                vec![$(Box::new($x)),+],
-            ),)
+        $crate::Sel::with_nodes(
+            vec![$(Box::new($x)),+],
+        )
     };
 }
 
 /// A macro used to create a sequence from a list of behaviors.
 /// Sequences run every behavior until one of them fails.
+///
+/// # Example
+///
+/// ```
+/// use bhv::*;
+///
+/// let tree = seq! {
+///     cond(|v| *v > 10), // only run if v > 10
+///     action(|_v| println!("v is greater than 10")),
+/// };
+///
+/// assert!(tree.execute(&mut 11) == true);
+/// // assert!(tree.execute(&mut 9) == false);
+/// ```
+#[macro_export]
 macro_rules! seq {
     () => {
         compile_error!("`seq` should have at least one argument!")
     };
     ($($x:expr),+$(,)?) => {
-        $crate::Seq(
-            $crate::List::with_nodes(
-                vec![$(Box::new($x)),+],
-            ),)
+        $crate::Seq::with_nodes(
+            vec![$(Box::new($x)),+],
+        )
     };
 }
