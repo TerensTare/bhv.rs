@@ -1,12 +1,4 @@
-
-//! # bhv
-//! 
-//! `bhv` is a library that implements a common interface for Behavior Trees and provides a set
-//! of utility nodes divided into:
-//! * adaptor nodes, that adapt an object into a behavior tree node,
-//! * decorator nodes, that alter the behavior and result of a node,
-//! * composite nodes, that several nodes at the same time.
-
+#![doc = include_str!("../README.md")]
 
 mod adapt;
 mod bhv_ext;
@@ -20,4 +12,4 @@ pub use adapt::*;
 pub use composite::*;
 pub use decor::*;
 
-pub use bhv_ext::BhvExt as _;
+pub use bhv_ext::BhvExt;

@@ -62,15 +62,19 @@ where
     fn update(&mut self, ctx: &mut Self::Context) -> Status {
         loop {
             if self.current >= self.nodes.len() {
+                self.reset(Policy::STATUS);
                 return Policy::STATUS;
             } else {
                 let s = self.nodes[self.current].update(ctx);
 
-                if s != Policy::STATUS {
-                    return s;
-                } else {
+                if s == Policy::STATUS {
                     self.current += 1;
                     continue;
+                } else if s == Status::Running {
+                    return Status::Running;
+                } else {
+                    self.reset(s);
+                    return s;
                 }
             }
         }
@@ -90,10 +94,12 @@ where
 impl<Ctx> Bhv for Sel<Ctx> {
     type Context = Ctx;
 
+    #[inline]
     fn update(&mut self, ctx: &mut Self::Context) -> Status {
         self.0.update(ctx)
     }
 
+    #[inline]
     fn reset(&mut self, _status: Status) {
         self.0.reset(_status)
     }
@@ -102,10 +108,12 @@ impl<Ctx> Bhv for Sel<Ctx> {
 impl<Ctx> Bhv for Seq<Ctx> {
     type Context = Ctx;
 
+    #[inline]
     fn update(&mut self, ctx: &mut Self::Context) -> Status {
         self.0.update(ctx)
     }
 
+    #[inline]
     fn reset(&mut self, _status: Status) {
         self.0.reset(_status)
     }

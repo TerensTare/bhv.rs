@@ -5,52 +5,16 @@ use crate::core::{Bhv, Status};
 ///
 /// More specifically, it converts [`Status::Success`] to [`Status::Failure`]
 /// and [`Status::Failure`] to [`Status::Success`].
-/// 
-/// # Example
-/// 
-/// ```
-/// use bhv::*;
-/// 
-/// let always_true = action(|_| {});
-/// assert!(always_true.clone().execute(&mut 100) == true);
-/// 
-/// let inverse = always_true.inv();
-/// assert!(inverse.execute(&mut 100) == false);
-/// ```
 #[derive(Clone)]
-pub struct Inv<B: Bhv>(pub B);
+pub struct Inv<B: Bhv>(pub(crate) B);
 
 /// A decorator that runs the given node until it's done and then returns [`Status::Success`].
-/// 
-/// # Example
-/// 
-/// ```
-/// use bhv::*;
-/// 
-/// let always_false = cond(|_| false);
-/// assert!(always_false.clone().execute(&mut 100) == false);
-/// 
-/// let always_true = always_false.pass();
-/// assert!(always_true.execute(&mut 100) == true);
-/// ```
 #[derive(Clone)]
-pub struct Pass<B: Bhv>(pub B);
+pub struct Pass<B: Bhv>(pub(crate) B);
 
 /// A decorator that runs the given node until it's done and then returns [`Status::Failure`].
-/// 
-/// # Example
-/// 
-/// ```
-/// use bhv::*;
-/// 
-/// let always_true = cond(|_| true);
-/// assert!(always_true.clone().execute(&mut 100) == true);
-/// 
-/// let always_false = always_true.fail();
-/// assert!(always_false.execute(&mut 100) == false);
-/// ```
 #[derive(Clone)]
-pub struct Fail<B: Bhv>(pub B);
+pub struct Fail<B: Bhv>(pub(crate) B);
 
 /// A decorator that runs the given node a certain number of times and returns its status.
 #[derive(Clone)]
@@ -73,59 +37,17 @@ where
     pub(crate) checked_cond: bool,
 }
 
-/// Repeat a behavior the given number of times.
-/// 
-/// # Example
-/// 
-/// ```
-/// use bhv::*;
-/// 
-/// let mut v = 10;
-/// 
-/// let dec = action(|v| *v -= 1);
-/// let tree = dec.repeat(3);
-/// 
-/// tree.execute(&mut v);
-/// 
-/// assert_eq!(v, 7);
-/// ```
-#[inline]
-pub fn repeat<B: Bhv>(bhv: B, count: u32) -> Repeat<B> {
-    Repeat {
-        bhv,
-        count,
-        current: 1,
-    }
-}
+/// A decorator that runs the given node until it returns [`Status::Success`].
+///
+/// It returns [`Status::Running`] until the node returns [`Status::Success`], in which case it is propagated.
+#[derive(Clone)]
+pub struct RepeatUntilPass<B: Bhv>(pub(crate) B);
 
-/// Repeat a behavior as long as the given predicate is true.
-/// 
-/// # Example
-/// 
-/// ```
-/// use bhv::*;
-/// 
-/// let mut v = 10;
-/// 
-/// let dec = action(|v| *v -= 1);
-/// let tree = dec.repeat_until(|v| *v < 8);
-/// 
-/// tree.execute(&mut v);
-/// 
-/// assert_eq!(v, 7);
-/// ```
-#[inline]
-pub fn repeat_until<B, C>(bhv: B, cond: C) -> RepeatUntil<B, C>
-where
-    B: Bhv,
-    C: Fn(&B::Context) -> bool,
-{
-    RepeatUntil {
-        bhv,
-        cond,
-        checked_cond: false,
-    }
-}
+/// A decorator that runs the given node until it returns [`Status::Failure`].
+///
+/// It returns [`Status::Running`] until the node returns [`Status::Failure`], in which case it is propagated.
+#[derive(Clone)]
+pub struct RepeatUntilFail<B: Bhv>(pub(crate) B);
 
 impl<B: Bhv> Bhv for Inv<B> {
     type Context = B::Context;
@@ -225,5 +147,41 @@ where
 
     fn reset(&mut self, _status: Status) {
         self.bhv.reset(_status)
+    }
+}
+
+impl<B: Bhv> Bhv for RepeatUntilPass<B> {
+    type Context = B::Context;
+
+    fn update(&mut self, ctx: &mut Self::Context) -> Status {
+        match self.0.update(ctx) {
+            Status::Failure => {
+                self.0.reset(Status::Failure);
+                Status::Running
+            }
+            s => s,
+        }
+    }
+
+    fn reset(&mut self, _status: Status) {
+        self.0.reset(_status)
+    }
+}
+
+impl<B: Bhv> Bhv for RepeatUntilFail<B> {
+    type Context = B::Context;
+
+    fn update(&mut self, ctx: &mut Self::Context) -> Status {
+        match self.0.update(ctx) {
+            Status::Success => {
+                self.0.reset(Status::Success);
+                Status::Running
+            }
+            s => s,
+        }
+    }
+
+    fn reset(&mut self, _status: Status) {
+        self.0.reset(_status)
     }
 }

@@ -27,21 +27,15 @@ pub trait Bhv {
     /// Useful for running a whole tree once built.
     ///
     /// If the node was executed successfully, returns `true`, `false` otherwise.
-    fn execute(mut self, ctx: &mut Self::Context) -> bool
+    fn execute(mut self, mut ctx: Self::Context) -> bool
     where
         Self: Sized,
     {
         loop {
-            match self.update(ctx) {
+            match self.update(&mut ctx) {
                 Status::Running => continue,
-                Status::Success => {
-                    self.reset(Status::Success);
-                    return true;
-                }
-                Status::Failure => {
-                    self.reset(Status::Failure);
-                    return false;
-                }
+                Status::Success => return true,
+                Status::Failure => return false,
             }
         }
     }
