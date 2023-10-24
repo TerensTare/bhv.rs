@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Terens Tare <terens.t17@gmail.com>"]
 description = "A crate providing means to create and use Behavior Trees"
 license = "MIT"
-keywords = [ "ai", "behavior tree", "gamedev", "robotics" ]
+keywords = [ "ai", "behavior-tree", "gamedev", "robotics" ]
 categories = [ "game-development", "science::robotics" ]
 repository = "https://github.com/TerensTare/bhv"
 
