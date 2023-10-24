@@ -1,13 +1,13 @@
 [package]
 name = "bhv"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 authors = ["Terens Tare <terens.t17@gmail.com>"]
 description = "A crate providing means to create and use Behavior Trees"
 license = "MIT"
 keywords = [ "ai", "behavior-tree", "gamedev", "robotics" ]
 categories = [ "game-development", "science::robotics" ]
-repository = "https://github.com/TerensTare/bhv"
+repository = "https://github.com/TerensTare/bhv.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
