@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Bhv::execute` now accepts the context by value instead of by mutable reference.
 - Rewrote the documentation to make it more natural.
 - Reduced the visibility of members of some decorator nodes to forbid construction these nodes directly. Use `BhvExt` to construct these nodes instead.
+- Added more fields to `Cargo.toml`.
 
 ### Fixed
 
