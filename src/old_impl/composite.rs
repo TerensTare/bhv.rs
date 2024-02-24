@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::core::{Bhv, Status};
+use crate::{Bhv, Status};
 
 // TODO:
 // BhvExt::then specialization for Seq
@@ -15,10 +15,10 @@ pub(crate) struct SelPolicy;
 pub(crate) struct SeqPolicy;
 
 pub(crate) struct List<Ctx, Policy>
-where
-    Policy: StatusPolicy,
+    where
+        Policy: StatusPolicy,
 {
-    nodes: Vec<Box<dyn Bhv<Context = Ctx>>>,
+    nodes: Vec<Box<dyn Bhv<Context=Ctx>>>,
     current: usize,
     _tag: PhantomData<Policy>,
 }
@@ -33,7 +33,7 @@ pub struct Seq<Ctx>(pub(crate) List<Ctx, SeqPolicy>);
 
 impl<Ctx> Sel<Ctx> {
     #[inline]
-    pub fn with_nodes(nodes: Vec<Box<dyn Bhv<Context = Ctx>>>) -> Self {
+    pub fn with_nodes(nodes: Vec<Box<dyn Bhv<Context=Ctx>>>) -> Self {
         Self(List {
             nodes,
             current: 0,
@@ -44,7 +44,7 @@ impl<Ctx> Sel<Ctx> {
 
 impl<Ctx> Seq<Ctx> {
     #[inline]
-    pub fn with_nodes(nodes: Vec<Box<dyn Bhv<Context = Ctx>>>) -> Self {
+    pub fn with_nodes(nodes: Vec<Box<dyn Bhv<Context=Ctx>>>) -> Self {
         Self(List {
             nodes,
             current: 0,
@@ -54,14 +54,15 @@ impl<Ctx> Seq<Ctx> {
 }
 
 impl<Ctx, Policy> Bhv for List<Ctx, Policy>
-where
-    Policy: StatusPolicy,
+    where
+        Policy: StatusPolicy,
 {
     type Context = Ctx;
 
     fn update(&mut self, ctx: &mut Self::Context) -> Status {
         loop {
             if self.current >= self.nodes.len() {
+                // TODO: is the reset called twice or is it necessary here?
                 self.reset(Policy::STATUS);
                 return Policy::STATUS;
             } else {

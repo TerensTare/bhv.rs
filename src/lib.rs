@@ -1,15 +1,13 @@
 #![doc = include_str!("../README.md")]
 
-mod adapt;
-mod bhv_ext;
-mod core;
+#[cfg(feature = "events")]
+mod events_impl;
 
-mod composite;
-mod decor;
+#[cfg(feature = "events")]
+pub use events_impl::*;
 
-pub use self::core::*;
-pub use adapt::*;
-pub use composite::*;
-pub use decor::*;
+#[cfg(not(feature = "events"))]
+mod old_impl;
 
-pub use bhv_ext::BhvExt;
+#[cfg(not(feature = "events"))]
+pub use old_impl::*;

@@ -1,4 +1,4 @@
-use crate::core::{Bhv, Status};
+use crate::{Bhv, Status};
 
 /// A decorator that runs the given node until it's done and inverts
 /// the result.
@@ -28,9 +28,9 @@ pub struct Repeat<B: Bhv> {
 /// and returns the status of the node.
 #[derive(Clone)]
 pub struct RepeatUntil<B, C>
-where
-    B: Bhv,
-    C: Fn(&B::Context) -> bool,
+    where
+        B: Bhv,
+        C: Fn(&B::Context) -> bool,
 {
     pub(crate) bhv: B,
     pub(crate) cond: C,
@@ -121,9 +121,9 @@ impl<B: Bhv> Bhv for Repeat<B> {
 }
 
 impl<B, C> Bhv for RepeatUntil<B, C>
-where
-    B: Bhv,
-    C: Fn(&B::Context) -> bool,
+    where
+        B: Bhv,
+        C: Fn(&B::Context) -> bool,
 {
     type Context = B::Context;
 

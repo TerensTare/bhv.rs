@@ -1,7 +1,11 @@
-use crate::{core::Bhv, decor::*};
+use std::marker::PhantomData;
 
 #[allow(unused_imports)]
-use crate::core::Status;
+use crate::events_impl::{
+    core::{Bhv, Status},
+    decor::*,
+    events::{Event, EventExt, EventType, EventTypeExt},
+};
 
 /// Helper methods to build a tree from given nodes.
 /// See nodes returned by the functions for specific examples and usage.
@@ -14,10 +18,10 @@ pub trait BhvExt: Bhv + Sized {
     /// use bhv::*;
     ///
     /// let always_true = action(|_| {});
-    /// assert!(always_true.clone().execute(&mut 100) == true);
+    /// always_true.clone().execute(UnitEventPump, &mut 100);
     ///
     /// let inverse = always_true.inv();
-    /// assert!(inverse.execute(&mut 100) == false);
+    /// inverse.execute(UnitEventPump, &mut 100);
     /// ```
     #[inline]
     fn inv(self) -> Inv<Self> {
@@ -32,10 +36,10 @@ pub trait BhvExt: Bhv + Sized {
     /// use bhv::*;
     ///
     /// let always_false = cond(|_| false);
-    /// assert!(always_false.clone().execute(&mut 100) == false);
+    /// always_false.clone().execute(UnitEventPump, &mut ());
     ///
     /// let always_true = always_false.pass();
-    /// assert!(always_true.execute(&mut 100) == true);
+    /// always_true.execute(UnitEventPump, &mut ());
     /// ```
     #[inline]
     fn pass(self) -> Pass<Self> {
@@ -50,10 +54,10 @@ pub trait BhvExt: Bhv + Sized {
     /// use bhv::*;
     ///
     /// let always_true = cond(|_| true);
-    /// assert!(always_true.clone().execute(&mut 100) == true);
+    /// always_true.clone().execute(UnitEventPump, &mut ());
     ///
     /// let always_false = always_true.fail();
-    /// assert!(always_false.execute(&mut 100) == false);
+    /// always_false.execute(UnitEventPump, &mut ());
     /// ```
     #[inline]
     fn fail(self) -> Fail<Self> {
@@ -73,7 +77,7 @@ pub trait BhvExt: Bhv + Sized {
     /// let dec = action(|v| *v -= 1);
     /// let tree = dec.repeat(3);
     ///
-    /// tree.execute(&mut v);
+    /// tree.execute(UnitEventPump, &mut v);
     ///
     /// assert_eq!(v, 7);
     /// ```
@@ -82,37 +86,7 @@ pub trait BhvExt: Bhv + Sized {
         Repeat {
             bhv: self,
             count,
-            current: 1,
-        }
-    }
-
-    /// Return a node that runs this node then checks the passed condition
-    /// until the condition returns true.
-    /// The node then returns the last exit status when done.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use bhv::*;
-    ///
-    /// let mut v = 10;
-    ///
-    /// let dec = action(|v| *v -= 1);
-    /// let tree = dec.repeat_until(|v| *v < 8);
-    ///
-    /// tree.execute(&mut v);
-    ///
-    /// assert_eq!(v, 7);
-    /// ```
-    #[inline]
-    fn repeat_until<C>(self, cond: C) -> RepeatUntil<Self, C>
-    where
-        C: Fn(&Self::Context) -> bool,
-    {
-        RepeatUntil {
-            bhv: self,
-            cond,
-            checked_cond: false,
+            current: 0,
         }
     }
 
@@ -130,7 +104,7 @@ pub trait BhvExt: Bhv + Sized {
     /// let tree = seq! { print, inc, cond }.repeat_until_pass();
     ///
     /// let mut ctx = 0;
-    /// tree.execute(&mut ctx);
+    /// tree.execute(UnitEventPump, &mut ctx);
     ///
     /// assert_eq!(ctx, 5);
     /// ```
@@ -153,13 +127,69 @@ pub trait BhvExt: Bhv + Sized {
     /// let tree = seq! { print, inc, cond }.repeat_until_fail();
     ///
     /// let mut ctx = 0;
-    /// tree.execute(&mut ctx);
+    /// tree.execute(UnitEventPump, &mut ctx);
     ///
     /// assert_eq!(ctx, 5);
     /// ```
     #[inline]
     fn repeat_until_fail(self) -> RepeatUntilFail<Self> {
         RepeatUntilFail(self)
+    }
+
+    /// Return a node that runs this node only after the given event type is triggered.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bhv::*;
+    ///
+    /// struct Step;
+    /// struct Exit;
+    ///
+    /// impl EventType for Step {}
+    /// impl EventType for Exit {}
+    ///
+    /// let step = action(|_| println!("Running"));
+    /// let on_exit = action(|_| println!("Exiting")).wait_for::<Exit>();
+    ///
+    /// let events: [&dyn Event; 3] = [
+    ///     &Step,
+    ///     &Step,
+    ///     &Exit,
+    /// ];
+    ///
+    /// let tree = seq! {
+    ///     step,
+    ///     on_exit,
+    /// };
+    ///
+    /// tree.execute(events, &mut ());
+    /// ```
+    #[inline]
+    fn wait_for<E: EventType>(self) -> WaitFor<Self, E> {
+        WaitFor {
+            bhv: self,
+            kind: E::static_event_type(),
+            _tag: PhantomData,
+        }
+    }
+
+    /// Execute the node until it does not return [`Status::Running`] anymore. Events are consumed from `events`.
+    fn execute<'a>(
+        mut self,
+        events: impl IntoIterator<Item=&'a dyn Event>,
+        ctx: &mut Self::Context,
+    ) {
+        for event in events {
+            if !self.should_react_to(event.event_type()) {
+                break;
+            } else {
+                match self.react(event, ctx) {
+                    Status::Running => continue,
+                    _ => return,
+                }
+            }
+        }
     }
 }
 
