@@ -1,6 +1,6 @@
 [package]
 name = "bhv"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Terens Tare <terens.t17@gmail.com>"]
 description = "A crate providing means to create and use Behavior Trees"
