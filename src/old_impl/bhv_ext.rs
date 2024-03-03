@@ -61,6 +61,36 @@ pub trait BhvExt: Bhv + Sized {
         Fail(self)
     }
 
+    /// Return a node that runs this node as long as the specified condition holds true.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bhv::*;
+    ///
+    /// let mut v = 0;
+    ///
+    /// let code = seq! {
+    ///     action(|v| println!("v = {}", v)),
+    ///     action(|v| *v += 1),
+    /// }.run_if(|v| *v < 5)
+    /// .repeat_until_fail();
+    ///
+    /// code.execute(&mut v);
+    ///
+    /// assert_eq!(v, 5);
+    /// ```
+    #[inline]
+    fn run_if<C>(self, cond: C) -> RunIf<Self, C>
+        where
+            C: Fn(&Self::Context) -> bool,
+    {
+        RunIf {
+            bhv: self,
+            cond,
+        }
+    }
+
     /// Return a node that runs this node the given number of times
     /// and returns the last exit status when done.
     ///

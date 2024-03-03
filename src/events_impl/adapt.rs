@@ -18,6 +18,11 @@ pub struct Cond<P, C>(P, PhantomData<C>)
     where
         P: Fn(&C) -> bool;
 
+/// The type of the result of [`async_action`].
+#[derive(Clone)]
+pub struct AsyncAction<A, C>(A, PhantomData<C>)
+    where A: FnMut(&mut C) -> Status;
+
 impl<A, C> Bhv for Action<A, C>
     where A: FnMut(&mut C) {
     type Context = C;
@@ -40,6 +45,16 @@ impl<P, C> Bhv for Cond<P, C>
         }
     }
 }
+
+impl<A, C> Bhv for AsyncAction<A, C>
+    where A: FnMut(&mut C) -> Status {
+    type Context = C;
+    #[inline]
+    fn react(&mut self, _event: &dyn Event, ctx: &mut Self::Context) -> Status {
+        self.0(ctx)
+    }
+}
+
 
 /// Adapt a function that returns nothing into a behavior, returning [`Status::Success`]
 /// on every call to [`Bhv::react`].
@@ -77,3 +92,47 @@ pub fn action<A, C>(a: A) -> Action<A, C>
 #[inline]
 pub fn cond<P, C>(p: P) -> Cond<P, C>
     where P: Fn(&C) -> bool { Cond(p, PhantomData) }
+
+
+/// Wrap a function returning a [`crate::Status`] into a behavior.
+///
+/// # Example
+///
+/// ```
+/// use bhv::*;
+///
+/// struct State {
+///     a: i32,
+///     b: i32,
+///     n: i32,
+/// }
+///
+/// impl State {
+///     fn new(steps: i32) -> Self {
+///         Self { a: 0, b: 1, n: steps }
+///     }
+/// }
+///
+/// let mut state = State::new(10); // show first 10 fibonacci numbers
+///
+/// let code = async_action(|s: &mut State| {
+///     if s.n == 0 {
+///         Status::Success
+///     } else {
+///         print!("{} ", s.b);
+///         let tmp = s.b;
+///         s.b += s.a;
+///         s.a = tmp;
+///
+///         s.n -= 1;
+///         Status::Running
+///     }
+/// });
+///
+/// code.execute(UnitEventPump, &mut state);
+///
+/// assert_eq!(state.b, 89);
+/// ```
+#[inline]
+pub fn async_action<A, C>(a: A) -> AsyncAction<A, C>
+    where A: FnMut(&mut C) -> Status { AsyncAction(a, PhantomData) }

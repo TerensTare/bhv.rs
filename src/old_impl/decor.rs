@@ -16,6 +16,18 @@ pub struct Pass<B: Bhv>(pub(crate) B);
 #[derive(Clone)]
 pub struct Fail<B: Bhv>(pub(crate) B);
 
+/// A decorator that runs the given node if a given condition is true and returns the node's status.
+/// If the condition is not true, this returns [`Status::Failure`].
+#[derive(Clone)]
+pub struct RunIf<B, C>
+    where
+        B: Bhv,
+        C: Fn(&B::Context) -> bool
+{
+    pub(crate) bhv: B,
+    pub(crate) cond: C,
+}
+
 /// A decorator that runs the given node a certain number of times and returns its status.
 #[derive(Clone)]
 pub struct Repeat<B: Bhv> {
@@ -93,6 +105,23 @@ impl<B: Bhv> Bhv for Fail<B> {
     fn reset(&mut self, _status: Status) {
         self.0.reset(_status)
     }
+}
+
+impl<B, C> Bhv for RunIf<B, C>
+    where
+        B: Bhv,
+        C: Fn(&B::Context) -> bool,
+{
+    type Context = B::Context;
+    fn update(&mut self, ctx: &mut Self::Context) -> Status {
+        if (self.cond)(ctx) {
+            self.bhv.update(ctx)
+        } else {
+            Status::Failure
+        }
+    }
+    #[inline]
+    fn reset(&mut self, _status: Status) { self.bhv.reset(_status) }
 }
 
 impl<B: Bhv> Bhv for Repeat<B> {
